@@ -3,19 +3,26 @@ pragma solidity ^0.8.24;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-/// @dev Callback interface implemented by contracts that want to react to
-///      receiving MockToken (used to make the CEI vulnerability exploitable).
-interface ITokenReceiver {
-    function onTokenReceived(address from, uint256 amount) external;
+/// @dev Hook interface for contracts that want custom logic on incoming transfers.
+interface ITransferHook {
+    function onTokenTransfer(address from, uint256 amount) external;
 }
 
 /// @title MockToken
-/// @notice A mintable ERC20 with a transfer callback hook.
-/// @dev When tokens are transferred to a contract address, MockToken calls
-///      `onTokenReceived` on the recipient (if implemented). This simulates
-///      token standards that notify recipients — and is what makes the
-///      CEI violation in VulnerableVault exploitable.
+/// @notice A mintable ERC20 where any user can register a "transfer hook" contract.
+///
+/// @dev When tokens are transferred to an address that has a registered hook,
+///      the token calls `onTokenTransfer` on that hook contract after the
+///      transfer completes. This lets users plug in arbitrary logic that
+///      runs whenever they receive tokens — and is what makes the CEI
+///      violation in VulnerableVault exploitable via reentrancy.
 contract MockToken is ERC20 {
+    /// @notice Maps a user address to their chosen hook contract.
+    ///         When tokens are transferred TO the user, the hook is called.
+    mapping(address => address) public transferHooks;
+
+    event TransferHookSet(address indexed user, address indexed hook);
+
     constructor() ERC20("BattleChain Demo Token", "BCDT") {}
 
     /// @notice Anyone can mint. This is intentional for the tutorial.
@@ -23,14 +30,20 @@ contract MockToken is ERC20 {
         _mint(to, amount);
     }
 
-    /// @dev Overrides transfer to notify contract recipients via callback.
+    /// @notice Register a hook contract that is called when you receive tokens.
+    /// @param hook The contract to call on incoming transfers (address(0) to remove).
+    function setTransferHook(address hook) external {
+        transferHooks[msg.sender] = hook;
+        emit TransferHookSet(msg.sender, hook);
+    }
+
+    /// @dev Overrides transfer to call the recipient's hook (if set) after moving tokens.
     function transfer(address to, uint256 amount) public override returns (bool) {
         bool success = super.transfer(to, amount);
 
-        // If the recipient is a contract, attempt the callback.
-        // Wrapped in try/catch so a reverting callback never blocks the transfer.
-        if (to.code.length > 0) {
-            try ITokenReceiver(to).onTokenReceived(msg.sender, amount) {} catch {}
+        address hook = transferHooks[to];
+        if (hook != address(0)) {
+            ITransferHook(hook).onTokenTransfer(msg.sender, amount);
         }
 
         return success;

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
-import {IAttackRegistry, ContractState} from "../src/interfaces/IBattleChain.sol";
+import {IAttackRegistry} from "../src/interfaces/IBattleChain.sol";
 
 /// @notice Step 3 (Protocol): Submit the attack mode request for DAO review.
 ///

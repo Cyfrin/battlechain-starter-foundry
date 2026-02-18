@@ -7,11 +7,12 @@ import {Attacker} from "../src/Attacker.sol";
 
 /// @notice
 ///         The attack flow:
-///           1. Deposit a seed amount to establish a non-zero balance in the vault
-///           2. Call withdrawAll() — vault transfers tokens, triggering onTokenReceived
-///           3. Inside onTokenReceived, call withdrawAll() again (balance still non-zero)
-///           4. Repeat until the vault is empty
-///           5. You're on BattleChain — split the haul per Safe Harbor terms and walk away clean
+///           1. Register a transfer hook on MockToken so this contract gets a callback on receive
+///           2. Deposit seed tokens to establish a non-zero balance in the vault
+///           3. Call withdrawAll() — vault transfers tokens, triggering our hook
+///           4. Inside onTokenTransfer(), call withdrawAll() again (balance still non-zero)
+///           5. Repeat until the vault is empty
+///           6. You're on BattleChain — split the haul per Safe Harbor terms and walk away clean
 ///
 /// Prerequisites — set in .env:
 ///   TOKEN_ADDRESS, VAULT_ADDRESS, RECOVERY_ADDRESS
@@ -38,7 +39,7 @@ contract Attack is Script {
         // Deploy the attacker — pointed at the vault, armed with bounty terms
         Attacker attacker = new Attacker(vault, token, recoveryAddress, BOUNTY_BPS);
 
-        // Pull the trigger. One deposit, one withdrawal call —
+        // Pull the trigger. One hook registration, one deposit, one withdrawal —
         // the vault's own logic does the rest.
         attacker.attack(SEED_AMOUNT);
 
