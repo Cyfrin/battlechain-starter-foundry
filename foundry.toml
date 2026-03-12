@@ -9,7 +9,7 @@ remappings = [
 ]
 
 [rpc_endpoints]
-battlechain = "http://testnet.battlechain.com:3051"
+battlechain = "https://testnet.battlechain.com:3051"
 
 [etherscan]
 battlechain = { key = "not-required", url = "https://block-explorer-app-mu.vercel.app/" }
