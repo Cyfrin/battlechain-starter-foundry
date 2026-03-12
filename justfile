@@ -33,6 +33,10 @@ verify-setup:
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 
+# Generate a random private key and import it as the 'battlechain' keystore account
+generate-key:
+    cast wallet import battlechain --private-key 0x$(openssl rand -hex 32)
+
 # Check agreement state (2=ATTACK_REQUESTED, 3=UNDER_ATTACK)
 check-state:
     cast call $ATTACK_REGISTRY "getAgreementState(address)(uint8)" $AGREEMENT_ADDRESS \
