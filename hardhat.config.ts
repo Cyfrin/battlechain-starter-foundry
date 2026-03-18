@@ -1,9 +1,10 @@
 import hardhatEthers from "@nomicfoundation/hardhat-ethers";
 import hardhatKeystore from "@nomicfoundation/hardhat-keystore";
+import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import { configVariable, defineConfig } from "hardhat/config";
 
 export default defineConfig({
-  plugins: [hardhatEthers, hardhatKeystore],
+  plugins: [hardhatEthers, hardhatKeystore, hardhatVerify],
   solidity: {
     profiles: {
       default: {
@@ -26,5 +27,20 @@ export default defineConfig({
       url: "https://testnet.battlechain.com:3051",
       accounts: [configVariable("PRIVATE_KEY")],
     },
+  },
+  etherscan: {
+    apiKey: {
+      battlechain: "not-required",
+    },
+    customChains: [
+      {
+        network: "battlechain",
+        chainId: 627,
+        urls: {
+          apiURL: "https://block-explorer-api.testnet.battlechain.com/api",
+          browserURL: "https://explorer.testnet.battlechain.com",
+        },
+      },
+    ],
   },
 });

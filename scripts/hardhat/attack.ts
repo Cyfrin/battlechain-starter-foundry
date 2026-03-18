@@ -19,7 +19,7 @@
 ///   (or: npx hardhat run scripts/hardhat/attack.ts)
 
 import { ethers } from "ethers";
-import { network } from "hardhat";
+import { network, run } from "hardhat";
 
 const SEED_AMOUNT = ethers.parseEther("100");
 const BOUNTY_BPS = 1_000n; // 10%
@@ -57,6 +57,11 @@ const attacker = await Attacker.connect(signer).deploy(
 await attacker.waitForDeployment();
 const attackerAddress = await attacker.getAddress();
 console.log("Attacker deployed:", attackerAddress);
+
+await run("verify:verify", {
+  address: attackerAddress,
+  constructorArguments: [vaultAddress, tokenAddress, recoveryAddress, BOUNTY_BPS],
+});
 
 // Execute
 const tx = await (attacker as ethers.Contract).attack(SEED_AMOUNT);

@@ -8,7 +8,7 @@
 ///   (or: npx hardhat run scripts/hardhat/setup.ts)
 
 import { ethers } from "ethers";
-import { network } from "hardhat";
+import { network, run } from "hardhat";
 import { BC, IBCDeployerABI } from "./abis.js";
 
 const SEED_AMOUNT = ethers.parseEther("1000");
@@ -21,7 +21,7 @@ const { ethers: hethers } = await network.connect({
 const [signer] = await hethers.getSigners();
 const deployer = new ethers.Contract(BC.DEPLOYER, IBCDeployerABI, signer);
 
-// 1. Deploy MockToken — get address via staticCall, then broadcast
+// 1. Deploy MockToken via BCDeployer — get address via staticCall, then broadcast
 const MockToken = await hethers.getContractFactory("MockToken");
 const tokenInitCode = MockToken.bytecode;
 
@@ -30,7 +30,12 @@ const tx1 = await deployer.deployCreate(tokenInitCode);
 await tx1.wait();
 console.log("MockToken deployed:", tokenAddress);
 
-// 2. Deploy VulnerableVault with CREATE2 for a deterministic address
+await run("verify:verify", {
+  address: tokenAddress,
+  constructorArguments: [],
+});
+
+// 2. Deploy VulnerableVault via BCDeployer with CREATE2 for a deterministic address
 const VulnerableVault = await hethers.getContractFactory("VulnerableVault");
 const vaultInitCode = ethers.concat([
   VulnerableVault.bytecode,
@@ -48,6 +53,11 @@ const vaultAddress = await deployer.deployCreate2.staticCall(salt, vaultInitCode
 const tx2 = await deployer.deployCreate2(salt, vaultInitCode);
 await tx2.wait();
 console.log("VulnerableVault deployed:", vaultAddress);
+
+await run("verify:verify", {
+  address: vaultAddress,
+  constructorArguments: [tokenAddress],
+});
 
 // 3. Seed the vault with tokens to represent protocol liquidity
 const token = MockToken.attach(tokenAddress).connect(signer) as ethers.Contract;
