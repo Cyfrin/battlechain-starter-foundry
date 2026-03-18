@@ -1,0 +1,25 @@
+{
+  "name": "battlechain-starter",
+  "version": "1.0.0",
+  "description": "BattleChain starter repo — Hardhat + Foundry",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "setup": "hardhat run scripts/hardhat/setup.ts",
+    "create-agreement": "hardhat run scripts/hardhat/createAgreement.ts",
+    "request-attack-mode": "hardhat run scripts/hardhat/requestAttackMode.ts",
+    "attack": "hardhat run scripts/hardhat/attack.ts"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.6",
+    "@nomicfoundation/hardhat-keystore": "^3.0.5",
+    "@types/node": "^22.8.5",
+    "ethers": "^6.16.0",
+    "hardhat": "^3.1.12",
+    "typescript": "~5.8.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}

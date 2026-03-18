@@ -65,3 +65,29 @@ build:
 
 test:
     forge test -vvv
+
+# ── Hardhat ────────────────────────────────────────────────────────────────────
+
+# Import your private key into Hardhat's encrypted keystore (run once)
+hh-import-key:
+    npx hardhat keystore set PRIVATE_KEY
+
+# Compile contracts with Hardhat (outputs to artifacts/)
+hh-build:
+    npx hardhat compile
+
+# Step 1: Deploy MockToken + VulnerableVault (Hardhat)
+hh-setup:
+    npx hardhat run scripts/hardhat/setup.ts
+
+# Step 2: Create Safe Harbor agreement (Hardhat, requires VAULT_ADDRESS in .env)
+hh-create-agreement:
+    npx hardhat run scripts/hardhat/createAgreement.ts
+
+# Step 3: Request attack mode (Hardhat, requires AGREEMENT_ADDRESS in .env)
+hh-request-attack-mode:
+    npx hardhat run scripts/hardhat/requestAttackMode.ts
+
+# Step 4: Execute the attack (Hardhat, requires DAO approval first)
+hh-attack:
+    npx hardhat run scripts/hardhat/attack.ts

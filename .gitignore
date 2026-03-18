@@ -1,10 +1,14 @@
-# Compiler files
+# Foundry
 cache/
 out/
-
-# Broadcast logs
 broadcast/
-out/
+
+# Hardhat
+artifacts/
+cache/hardhat/
+node_modules/
+dist/
+typechain-types/
 
 # Docs
 docs/
