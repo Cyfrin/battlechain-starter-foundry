@@ -20,7 +20,7 @@ interface IMockRegistryModerator {
 ///   just approve-attack-mode
 ///
 contract ApproveAttackMode is Script {
-    address private constant MOCK_REGISTRY_MODERATOR = 0x6C2DFbdF0714FC8CE065039911758b2821818745;
+    address private constant MOCK_REGISTRY_MODERATOR = 0x1bC64E6F187a47D136106784f4E9182801535BD3;
 
     function run() external {
         address agreement = vm.envAddress("AGREEMENT_ADDRESS");
