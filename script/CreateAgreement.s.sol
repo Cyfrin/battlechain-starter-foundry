@@ -52,7 +52,7 @@ contract CreateAgreement is BCSafeHarbor {
         details.bountyTerms = bountyTerms;
 
         // 5. Create, set commitment window, and adopt
-        address agreement = createAgreement(details, msg.sender, keccak256(abi.encodePacked("agreement-v1", msg.sender)));
+        address agreement = createAgreement(details, msg.sender, keccak256(abi.encodePacked("agreement-v1", msg.sender, vault)));
         setCommitmentWindow(agreement, COMMITMENT_WINDOW);
         adoptAgreement(agreement);
 
