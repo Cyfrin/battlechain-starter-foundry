@@ -1,8 +1,8 @@
 {
   "lib/battlechain-lib": {
     "tag": {
-      "name": "0.1.1",
-      "rev": "8589d1b03bb74480c37b80d0ea17b00968a7ccda"
+      "name": "0.2.0",
+      "rev": "7f580dfb2cf87be5c590c68d5c82642e0f964233"
     }
   },
   "lib/forge-std": {

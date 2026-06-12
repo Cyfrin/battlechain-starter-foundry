@@ -23,8 +23,6 @@ A starter repo for interacting with the Battlechain Safe Harbor protocol. Includ
 
 The Safe Harbor core contracts (registry, agreement factory, attack registry), CreateX, and the Safe contract suite are deployed on both networks, and both have a block explorer with contract verification: [mainnet](https://explorer.mainnet.battlechain.com/) and [testnet](https://explorer.testnet.battlechain.com/). The flows in this repo target BattleChain Testnet, since the mock dependencies (such as the permissionless `MockRegistryModerator` used to approve attack mode) are testnet-only.
 
-> **Note:** The scripts in this repo resolve contract addresses through the vendored `lib/battlechain-lib` submodule. The currently pinned version only resolves addresses on testnet (chain 627) and reverts on mainnet (chain 626). It also predates the v5.0.0 testnet redeploy, so `just setup`, `just create-agreement`, and `just request-attack-mode` target the retired v4 testnet contracts at runtime even though they build. Running those flows on testnet, or any script against `--rpc-url battlechain-mainnet`, requires updating the `lib/battlechain-lib` pin to a release with the v5.0.0 testnet addresses and mainnet support. The addresses pinned directly in this repo (`.env.example`, `script/ApproveAttackMode.s.sol`) already reflect the v5.0.0 testnet deployment.
-
 # Getting Started
 
 ## Requirements
