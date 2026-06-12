@@ -11,9 +11,11 @@ remappings = [
 
 [rpc_endpoints]
 battlechain = "https://testnet.battlechain.com"
+battlechain-mainnet = "https://mainnet.battlechain.com"
 
 [etherscan]
 battlechain = { key = "not-required", url = "https://block-explorer-app-mu.vercel.app/" }
+battlechain-mainnet = { key = "not-required", url = "https://block-explorer-api.mainnet.battlechain.com/api" }
 
 [lint]
 exclude_lints = ["mixed-case-variable"]

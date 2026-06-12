@@ -2,6 +2,9 @@ set dotenv-load
 
 import "lib/battlechain-lib/battlechain.just"
 
+# Recipes target BattleChain Testnet (chain 627): the mock dependencies (e.g. the permissionless
+# MockRegistryModerator) are testnet-only. Verification and block explorers exist on both networks.
+# The Safe Harbor contracts are also deployed on mainnet (chain 626, https://mainnet.battlechain.com).
 RPC    := "https://testnet.battlechain.com"
 ACCT   := "battlechain"
 
@@ -18,6 +21,10 @@ create-agreement:
 # Step 3: Request attack mode (requires AGREEMENT_ADDRESS in .env)
 request-attack-mode:
     forge script script/RequestAttackMode.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
+
+# Step 3b: Approve the request via the permissionless MockRegistryModerator (testnet only, requires AGREEMENT_ADDRESS in .env)
+approve-attack-mode:
+    forge script script/ApproveAttackMode.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
 
 # ── Whitehat role ──────────────────────────────────────────────────────────────
 
@@ -58,7 +65,7 @@ generate-key:
 # Check agreement state (2=ATTACK_REQUESTED, 3=UNDER_ATTACK)
 check-state:
     cast call $ATTACK_REGISTRY "getAgreementState(address)(uint8)" $AGREEMENT_ADDRESS \
-        --rpc-url https://testnet.battlechain.com
+        --rpc-url {{RPC}}
 
 build:
     forge build
