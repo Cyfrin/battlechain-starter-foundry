@@ -21,7 +21,18 @@ A starter repo for interacting with the Battlechain Safe Harbor protocol. Includ
 | BattleChain         | 626      | https://mainnet.battlechain.com  |
 | BattleChain Testnet | 627      | https://testnet.battlechain.com  |
 
-The Safe Harbor core contracts (registry, agreement factory, attack registry), CreateX, and the Safe contract suite are deployed on both networks, and both have a block explorer with contract verification: [mainnet](https://explorer.mainnet.battlechain.com/) and [testnet](https://explorer.testnet.battlechain.com/). The flows in this repo target BattleChain Testnet, since the mock dependencies (such as the permissionless `MockRegistryModerator` used to approve attack mode) are testnet-only.
+The Safe Harbor core contracts (registry, agreement factory, attack registry), CreateX, and the Safe contract suite are deployed on both networks, and both have a block explorer with contract verification: [mainnet](https://explorer.mainnet.battlechain.com/) and [testnet](https://explorer.testnet.battlechain.com/).
+
+The recipes default to **BattleChain Testnet**. To target **Mainnet**, prefix any recipe with `NETWORK=mainnet`:
+
+```bash
+just setup                  # testnet (default)
+NETWORK=mainnet just setup  # mainnet (chain 626)
+```
+
+`NETWORK` switches the RPC, chain id, attack-registry address, and verification endpoint automatically.
+
+**Mainnet differs from testnet at the approval step.** The permissionless `MockRegistryModerator` used by `just approve-attack-mode` is **testnet-only** — on mainnet `approve-attack-mode` refuses to run. Instead, after `NETWORK=mainnet just request-attack-mode`, an access-controlled registry-moderator multisig must approve the request before the agreement reaches `UNDER_ATTACK` and you can run `NETWORK=mainnet just attack`.
 
 # Getting Started
 
@@ -64,12 +75,13 @@ just request-attack-mode
 
 # Step 3b: Approve the request via the permissionless MockRegistryModerator (testnet only)
 just approve-attack-mode
+# On mainnet, skip this step — a registry-moderator multisig approves the request instead.
 ```
 
 ## Whitehat Role
 
 ```bash
-# Step 4: Execute the attack (requires DAO approval first)
+# Step 4: Execute the attack (requires DAO/moderator approval first)
 just attack
 ```
 
