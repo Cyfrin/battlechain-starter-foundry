@@ -20,9 +20,10 @@ contract ReentrancyTest is Test {
     function setUp() public {
         (attackerEOA, attackerKey) = makeAddrAndKey("attacker");
 
-        // Deploy token and vault
+        // Deploy token and vault (seed=0 here; this test seeds via a deposit to
+        // also exercise the deposit path — Setup.s.sol uses the constructor seed).
         token = new MockToken();
-        vault = new VulnerableVault(address(token));
+        vault = new VulnerableVault(address(token), 0);
 
         // Seed vault with protocol liquidity
         token.mint(deployer, VAULT_SEED);
@@ -59,5 +60,10 @@ contract ReentrancyTest is Test {
         vm.prank(deployer);
         vm.expectRevert();
         vault.withdrawAll();
+    }
+
+    function test_constructorSeedsVault() public {
+        VulnerableVault seeded = new VulnerableVault(address(token), VAULT_SEED);
+        assertEq(token.balanceOf(address(seeded)), VAULT_SEED);
     }
 }

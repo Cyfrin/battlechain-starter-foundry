@@ -33,22 +33,28 @@ attack:
     forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
 
 # ── Browser wallet (AI-initiated, user-approved) ─────────────────────────────
+# Browser-wallet (MetaMask/Trezor) signing needs Foundry NIGHTLY (`foundryup -i
+# nightly`) AND the fixed wallet running locally: clone
+# github.com/foundry-rs/foundry-browser-wallet, then `pnpm install && pnpm dev`
+# (serves localhost:5173). These targets pass --browser-development so forge
+# connects to that local wallet — the version bundled into `forge --browser` is
+# older (v0.2.0) and stalls on BattleChain. No setup? Use the keystore recipes above.
 
 # Step 1: Deploy MockToken + VulnerableVault, seed the vault (browser wallet)
 setup-browser:
-    forge script script/Setup.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
+    forge script script/Setup.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --browser-development --browser-disable-open --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # Step 2: Create Safe Harbor agreement (browser wallet)
 create-agreement-browser:
-    forge script script/CreateAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
+    forge script script/CreateAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --browser-development --browser-disable-open --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # Step 3: Request attack mode (browser wallet)
 request-attack-mode-browser:
-    forge script script/RequestAttackMode.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
+    forge script script/RequestAttackMode.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --browser-development --browser-disable-open --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # Step 4: Execute the attack (browser wallet)
 attack-browser:
-    forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
+    forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --browser-development --browser-disable-open --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # ── Verification ──────────────────────────────────────────────────────────────
 

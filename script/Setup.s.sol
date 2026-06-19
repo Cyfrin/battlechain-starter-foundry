@@ -25,19 +25,16 @@ contract Setup is BCDeploy {
         address token = bcDeployCreate(type(MockToken).creationCode);
         console.log("MockToken deployed:", token);
 
-        // 2. Deploy VulnerableVault via CreateX with deterministic address
+        // 2. Deploy VulnerableVault via CreateX. Its constructor mints SEED_AMOUNT
+        //    to itself, so the vault is deployed AND seeded in this single
+        //    transaction — no separate mint/approve/deposit. The whole setup is
+        //    therefore just two transactions (token, then vault).
         bytes32 salt = keccak256(abi.encodePacked("vulnerable-vault-v1", msg.sender));
         address vault = bcDeployCreate2(
             salt,
-            abi.encodePacked(type(VulnerableVault).creationCode, abi.encode(token))
+            abi.encodePacked(type(VulnerableVault).creationCode, abi.encode(token, SEED_AMOUNT))
         );
-        console.log("VulnerableVault deployed:", vault);
-
-        // 3. Seed the vault with tokens to represent protocol liquidity
-        MockToken(token).mint(msg.sender, SEED_AMOUNT);
-        MockToken(token).approve(vault, SEED_AMOUNT);
-        VulnerableVault(vault).deposit(SEED_AMOUNT);
-        console.log("Vault seeded with", SEED_AMOUNT / 1e18, "tokens");
+        console.log("VulnerableVault deployed + seeded with", SEED_AMOUNT / 1e18, "tokens:", vault);
 
         vm.stopBroadcast();
 
