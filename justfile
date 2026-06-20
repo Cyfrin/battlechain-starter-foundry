@@ -44,22 +44,27 @@ create-agreement-browser:
     test -n "$CALLDATA" || { echo "failed to build create() calldata"; exit 1; }
     cast send {{bc-factory}} --data "$CALLDATA" --browser --rpc-url {{RPC}}
 
-# Step 3: Adopt the agreement (requires AGREEMENT_ADDRESS in .env)
+# Step 3: Lock the commitment window. REQUIRED — the AttackRegistry rejects an
+# attack-mode request until the agreement's terms are committed. Needs AGREEMENT_ADDRESS.
+set-commitment-window-browser:
+    cast send "$AGREEMENT_ADDRESS" "extendCommitmentWindow(uint256)" $(( $(date +%s) + 2592000 )) --browser --rpc-url {{RPC}}
+
+# Step 4: Adopt the agreement (requires AGREEMENT_ADDRESS in .env)
 adopt-agreement-browser:
     cast send {{bc-registry}} "adoptSafeHarbor(address)" "$AGREEMENT_ADDRESS" --browser --rpc-url {{RPC}}
 
-# Step 4: Request attack mode (requires AGREEMENT_ADDRESS in .env)
+# Step 5: Request attack mode (requires AGREEMENT_ADDRESS in .env)
 request-attack-mode-browser:
     cast send {{bc-attack-registry}} "requestUnderAttack(address)" "$AGREEMENT_ADDRESS" --browser --rpc-url {{RPC}}
 
-# Step 5: Deploy the Exploit — approves attack mode + drains the vault in one tx.
+# Step 6: Deploy the Exploit — approves attack mode + drains the vault in one tx.
 # Requires VAULT_ADDRESS, RECOVERY_ADDRESS, AGREEMENT_ADDRESS in .env.
 attack-browser:
     #!/usr/bin/env bash
     set -euo pipefail
     ARGS=$(cast abi-encode "constructor(address,address,address,address)" "$VAULT_ADDRESS" "$RECOVERY_ADDRESS" "$AGREEMENT_ADDRESS" {{bc-moderator}})
     INITCODE="$(forge inspect Exploit bytecode)${ARGS#0x}"
-    cast send --create "$INITCODE" --browser --rpc-url {{RPC}}
+    cast send --browser --rpc-url {{RPC}} --create "$INITCODE"
 
 # ══ Same five steps via keystore (no browser; works on stable Foundry) ═══════
 
@@ -68,6 +73,9 @@ deploy-protocol:
 
 create-agreement:
     forge script script/CreateAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
+
+set-commitment-window:
+    forge script script/SetCommitmentWindow.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
 
 adopt-agreement:
     forge script script/AdoptAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
@@ -84,21 +92,21 @@ attack:
 # (Browser deploys via cast don't write a broadcast file — verify keystore runs,
 # or use `just bc-verify <addr> src/VulnerableVault.sol:VulnerableVault`.)
 
-# Verify MockToken + VulnerableVault (after a keystore deploy-protocol)
+# Verify MockToken + VulnerableVault from a KEYSTORE deploy (parses the broadcast file).
 verify-protocol:
     just bc-verify-broadcast script/DeployProtocol.s.sol
+
+# Verify MockToken + VulnerableVault from a BROWSER (cast) deploy. cast writes no
+# broadcast file, so verify by address. Requires VAULT_ADDRESS + TOKEN_ADDRESS in .env.
+verify-protocol-browser:
+    just bc-verify "$TOKEN_ADDRESS" src/MockToken.sol:MockToken
+    forge verify-contract "$VAULT_ADDRESS" src/VulnerableVault.sol:VulnerableVault --chain-id {{bc-chain-id}} {{bc-verify-flags}} --rpc-url {{RPC}} --constructor-args $(cast abi-encode "constructor(uint256)" 1000000000000000000000)
 
 # Verify the Exploit + Attacker (after a keystore attack)
 verify-exploit:
     just bc-verify-broadcast script/Attack.s.sol
 
 # ══ Optional / advanced ══════════════════════════════════════════════════════
-
-# Lock the agreement terms for a period (optional — the quickstart skips this).
-set-commitment-window:
-    forge script script/SetCommitmentWindow.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
-set-commitment-window-browser:
-    cast send "$AGREEMENT_ADDRESS" "extendCommitmentWindow(uint256)" $(( $(date +%s) + 2592000 )) --browser --rpc-url {{RPC}}
 
 # Approve attack mode standalone (the attack step folds this in, so usually unneeded).
 approve-attack-mode:

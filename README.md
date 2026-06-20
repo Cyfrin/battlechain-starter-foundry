@@ -88,21 +88,23 @@ just deploy-protocol
 # Register a Safe Harbor agreement scoping the vault. Copy AGREEMENT_ADDRESS into .env.
 just create-agreement
 
-# Adopt the agreement in the registry (this is what makes it live for attack mode).
+# Lock the agreement's commitment window — REQUIRED before attack mode can be
+# requested (the AttackRegistry reverts with InsufficientCommitment otherwise).
+just set-commitment-window
+
+# Adopt the agreement in the registry.
 just adopt-agreement
 
 # Request attack mode for the agreement.
 just request-attack-mode
-
-# Approve it via the permissionless testnet MockRegistryModerator → UNDER_ATTACK.
-just approve-attack-mode
 ```
 
 ## 3. Whitehat role
 
 ```bash
-# Deploy the Exploit: drains the vault via reentrancy and splits the proceeds
-# (90% returned to the protocol's recovery address, 10% kept as the bounty).
+# Deploy the Exploit: it approves attack mode (via the permissionless testnet
+# moderator), drains the vault via reentrancy, and splits the proceeds
+# (90% returned to the recovery address, 10% kept as the bounty).
 just attack
 ```
 
