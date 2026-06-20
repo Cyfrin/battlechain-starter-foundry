@@ -1,69 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Test, console} from "forge-std/Test.sol";
-import {MockToken} from "../src/MockToken.sol";
+import {Test} from "forge-std/Test.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {VulnerableVault} from "../src/VulnerableVault.sol";
-import {Attack} from "../script/Attack.s.sol";
+import {Exploit} from "../src/Exploit.sol";
 
 contract ReentrancyTest is Test {
-    MockToken public token;
-    VulnerableVault public vault;
-
-    address deployer = makeAddr("deployer");
-    address recovery = makeAddr("recovery");
-    address attackerEOA;
-    uint256 attackerKey;
-
     uint256 constant VAULT_SEED = 1_000e18;
+    uint256 constant ATTACKER_SEED = 100e18; // Attacker.SEED_AMOUNT
 
-    function setUp() public {
-        (attackerEOA, attackerKey) = makeAddrAndKey("attacker");
-
-        // Deploy token and vault (seed=0 here; this test seeds via a deposit to
-        // also exercise the deposit path — Setup.s.sol uses the constructor seed).
-        token = new MockToken();
-        vault = new VulnerableVault(address(token), 0);
-
-        // Seed vault with protocol liquidity
-        token.mint(deployer, VAULT_SEED);
-        vm.startPrank(deployer);
-        token.approve(address(vault), VAULT_SEED);
-        vault.deposit(VAULT_SEED);
-        vm.stopPrank();
-
-        // Set env vars for the script
-        vm.setEnv("SENDER_ADDRESS", vm.toString(attackerEOA));
-        vm.setEnv("TOKEN_ADDRESS", vm.toString(address(token)));
-        vm.setEnv("VAULT_ADDRESS", vm.toString(address(vault)));
-        vm.setEnv("RECOVERY_ADDRESS", vm.toString(recovery));
+    function test_vaultDeploysAndSeedsItsOwnToken() public {
+        VulnerableVault vault = new VulnerableVault(VAULT_SEED);
+        IERC20 token = IERC20(address(vault.TOKEN()));
+        assertEq(token.balanceOf(address(vault)), VAULT_SEED);
     }
 
-    function test_reentrancyDrainsVault() public {
-        uint256 vaultBefore = token.balanceOf(address(vault));
-        assertEq(vaultBefore, VAULT_SEED);
+    function test_exploitDrainsVaultInOneDeploy() public {
+        VulnerableVault vault = new VulnerableVault(VAULT_SEED);
+        IERC20 token = IERC20(address(vault.TOKEN()));
 
-        // Run the attack script exactly as it would be run on-chain
-        Attack attack = new Attack();
-        attack.run();
+        address whitehat = makeAddr("whitehat");
+        address recovery = makeAddr("recovery");
 
-        // Vault is empty
-        assertEq(token.balanceOf(address(vault)), 0);
+        // Deploying Exploit IS the whole attack. moderator=0 skips the (separate)
+        // approve step; this asserts the reentrancy drain + bounty split.
+        vm.prank(whitehat);
+        new Exploit(address(vault), recovery, address(0), address(0));
 
-        // 90% returned to recovery, 10% kept as bounty
-        uint256 total = VAULT_SEED + 100e18; // SEED_AMOUNT from Attack.s.sol
-        assertEq(token.balanceOf(recovery), total * 9_000 / 10_000);
-        assertEq(token.balanceOf(attackerEOA), total * 1_000 / 10_000); // BOUNTY_BPS = 1_000
-
-        // Deployer's vault balance is still recorded but unwithdrawable
-        assertEq(vault.getBalance(deployer), VAULT_SEED);
-        vm.prank(deployer);
-        vm.expectRevert();
-        vault.withdrawAll();
-    }
-
-    function test_constructorSeedsVault() public {
-        VulnerableVault seeded = new VulnerableVault(address(token), VAULT_SEED);
-        assertEq(token.balanceOf(address(seeded)), VAULT_SEED);
+        uint256 total = VAULT_SEED + ATTACKER_SEED;
+        assertEq(token.balanceOf(address(vault)), 0, "vault drained");
+        assertEq(token.balanceOf(recovery), total * 9_000 / 10_000, "90% returned to protocol");
+        assertEq(token.balanceOf(whitehat), total * 1_000 / 10_000, "10% bounty to whitehat");
     }
 }

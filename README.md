@@ -4,15 +4,23 @@
 - [Getting Started](#getting-started)
   - [Requirements](#requirements)
   - [Installation](#installation)
-  - [Quickstart](#quickstart)
 - [Usage](#usage)
-  - [Protocol Role](#protocol-role)
-  - [Whitehat Role](#whitehat-role)
+  - [1. Set up a wallet](#1-set-up-a-wallet)
+  - [2. Protocol role](#2-protocol-role)
+  - [3. Whitehat role](#3-whitehat-role)
+  - [Verify on the explorer](#verify-on-the-explorer)
+  - [Sign with your own wallet (MetaMask/Trezor)](#sign-with-your-own-wallet-metamasktrezor)
   - [Utilities](#utilities)
 
 # About
 
-A starter repo for interacting with the Battlechain Safe Harbor protocol. Includes scripts for deploying a vulnerable vault, creating a Safe Harbor agreement, requesting attack mode, and executing a whitehat rescue.
+A starter repo for interacting with the BattleChain Safe Harbor protocol. It walks the
+full flow: deploy a deliberately vulnerable vault, register a Safe Harbor agreement,
+open it for attack, and execute a whitehat rescue that splits the proceeds per the
+agreement terms.
+
+Every step is a **single transaction**, so it works equally well from a keystore (below)
+or signed in your own browser wallet (see [Sign with your own wallet](#sign-with-your-own-wallet-metamasktrezor)).
 
 ## Networks
 
@@ -21,64 +29,111 @@ A starter repo for interacting with the Battlechain Safe Harbor protocol. Includ
 | BattleChain         | 626      | https://mainnet.battlechain.com  |
 | BattleChain Testnet | 627      | https://testnet.battlechain.com  |
 
-The Safe Harbor core contracts (registry, agreement factory, attack registry), CreateX, and the Safe contract suite are deployed on both networks, and both have a block explorer with contract verification: [mainnet](https://explorer.mainnet.battlechain.com/) and [testnet](https://explorer.testnet.battlechain.com/). The flows in this repo target BattleChain Testnet, since the mock dependencies (such as the permissionless `MockRegistryModerator` used to approve attack mode) are testnet-only.
+The Safe Harbor core contracts (registry, agreement factory, attack registry), CreateX,
+and the Safe contract suite are deployed on both networks, and both have a block explorer
+with contract verification: [mainnet](https://explorer.mainnet.battlechain.com/) and
+[testnet](https://explorer.testnet.battlechain.com/). The flows here target **BattleChain
+Testnet**, since the mock dependencies (such as the permissionless `MockRegistryModerator`
+used to approve attack mode) are testnet-only.
 
 # Getting Started
 
 ## Requirements
 
-- [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-  - You'll know you did it right if you can run `git --version` and you see a response like `git version x.x.x`
-- [foundry](https://getfoundry.sh/)
-  - You'll know you did it right if you can run `forge --version` and you see a response like `forge 0.2.0 (816e00b 2023-03-16T00:05:26.396218Z)`
-  - For browser wallet targets (`just *-browser`), you need forge >= `1.6.0-nightly` (commit `c1cdc6c1`, 2026-03-10) or later
-- [just](https://github.com/casey/just)
-  - You'll know you did it right if you can run `just --version` and you see a response like `just 1.x.x`
+- [git](https://git-scm.com/) — `git --version`
+- [foundry](https://getfoundry.sh/) — `forge --version`
+  - The browser-wallet targets (`just *-browser`) need Foundry **nightly**: `foundryup -i nightly`
+- [just](https://github.com/casey/just) — `just --version`
 
 ## Installation
 
 ```bash
 git clone <MY_REPO>
 cd <MY_REPO>
-```
-
-## Quickstart
-
-```bash
+forge install
 just build
 ```
 
 # Usage
 
-## Protocol Role
+The steps chain by passing addresses through `.env`. After each deploy step, copy the
+logged address into `.env` before running the next one.
+
+## 1. Set up a wallet
+
+Create a fresh keystore account named `battlechain` and put its address in `.env`:
 
 ```bash
-# Step 1: Deploy MockToken + VulnerableVault, seed the vault
-just setup
+just generate-key                 # imports a random key as the `battlechain` keystore account
+```
 
-# Step 2: Create Safe Harbor agreement (requires VAULT_ADDRESS in .env)
+Add to `.env` (use the address `generate-key` prints; for this demo the protocol's
+recovery address is just your own wallet):
+
+```
+SENDER_ADDRESS=0xYourAddress
+RECOVERY_ADDRESS=0xYourAddress
+```
+
+Fund the address with a little BattleChain Testnet ETH for gas (bridge Sepolia ETH at
+https://portal.battlechain.com/bridge).
+
+## 2. Protocol role
+
+```bash
+# Deploy the vulnerable protocol. The vault deploys + seeds its own MockToken.
+# Copy the logged VAULT_ADDRESS and TOKEN_ADDRESS into .env.
+just deploy-protocol
+
+# Register a Safe Harbor agreement scoping the vault. Copy AGREEMENT_ADDRESS into .env.
 just create-agreement
 
-# Step 3: Request attack mode (requires AGREEMENT_ADDRESS in .env)
+# Adopt the agreement in the registry (this is what makes it live for attack mode).
+just adopt-agreement
+
+# Request attack mode for the agreement.
 just request-attack-mode
 
-# Step 3b: Approve the request via the permissionless MockRegistryModerator (testnet only)
+# Approve it via the permissionless testnet MockRegistryModerator → UNDER_ATTACK.
 just approve-attack-mode
 ```
 
-## Whitehat Role
+## 3. Whitehat role
 
 ```bash
-# Step 4: Execute the attack (requires DAO approval first)
+# Deploy the Exploit: drains the vault via reentrancy and splits the proceeds
+# (90% returned to the protocol's recovery address, 10% kept as the bounty).
 just attack
 ```
+
+## Verify on the explorer
+
+```bash
+just verify-protocol     # verify MockToken + VulnerableVault
+just verify-exploit      # verify the Exploit + Attacker
+```
+
+## Sign with your own wallet (MetaMask/Trezor)
+
+Every step above has a `-browser` variant that signs in your own wallet instead of a
+keystore. These need Foundry **nightly** (`foundryup -i nightly`) and use `cast` under
+the hood (`forge script --browser` hangs waiting on the wallet; `cast send` doesn't):
+
+```bash
+just deploy-protocol-browser
+just create-agreement-browser
+just adopt-agreement-browser
+just request-attack-mode-browser
+just attack-browser
+```
+
+Approve each transaction in your wallet when it pops up, then copy the resulting address
+into `.env` (the deployed addresses appear in the `ContractCreation` logs of the receipt).
 
 ## Utilities
 
 ```bash
-# Check agreement state (2=ATTACK_REQUESTED, 3=UNDER_ATTACK)
-just check-state
-
-# Run tests
-just test
+just check-state         # agreement state (2=ATTACK_REQUESTED, 3=UNDER_ATTACK)
+just test                # run the reentrancy tests
+just set-commitment-window   # optional: lock the agreement terms for a period
 ```

