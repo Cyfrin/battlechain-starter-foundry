@@ -7,7 +7,8 @@ import {Exploit} from "../src/Exploit.sol";
 
 /// @notice Step 5 (Whitehat): Deploy the Exploit — a SINGLE transaction that approves
 /// attack mode (via the permissionless testnet moderator) and drains the vault via
-/// reentrancy, then splits the proceeds per Safe Harbor terms (90% back, 10% bounty).
+/// reentrancy, then settles per Safe Harbor terms: the protocol's recovered funds are
+/// returned minus the 10% bounty, and the whitehat reclaims their seed deposit.
 ///
 /// Prerequisites — set in .env:
 ///   VAULT_ADDRESS, TOKEN_ADDRESS, RECOVERY_ADDRESS, AGREEMENT_ADDRESS
@@ -17,6 +18,7 @@ import {Exploit} from "../src/Exploit.sol";
 ///   just attack-browser    # your own wallet (MetaMask/Trezor)
 contract Attack is Script {
     address constant MOCK_REGISTRY_MODERATOR = 0x3DdA228A38b4d7438bBF5D5137c8D1090DcaF6bF;
+    uint256 constant BOUNTY_BPS = 1_000; // 10% — display only; keep in sync with Attacker.BOUNTY_BPS
 
     function run() external {
         address vault = vm.envAddress("VAULT_ADDRESS");
@@ -33,12 +35,18 @@ contract Attack is Script {
         vm.stopBroadcast();
 
         uint256 vaultAfter = IERC20(token).balanceOf(vault);
-        uint256 returned = IERC20(token).balanceOf(recovery);
+
+        // The whole vault is drained, so `vaultBefore` IS the protocol's recovered funds
+        // (the attacker's seed is reclaimed separately). The bounty is 10% of that. We
+        // derive the split from the rule rather than post-state balances because in this
+        // quickstart RECOVERY_ADDRESS and the deploying wallet are the same address.
+        uint256 recovered = vaultBefore;
+        uint256 bounty = (recovered * BOUNTY_BPS) / 10_000;
 
         console.log("\n--- Vault drained ---");
         console.log("Vault before:      ", vaultBefore / 1e18, "tokens");
         console.log("Vault after:       ", vaultAfter / 1e18, "tokens");
-        console.log("Returned to protocol:", returned / 1e18, "tokens");
-        console.log("(The 10%% bounty went to the wallet that deployed the Exploit.)");
+        console.log("Returned to protocol:", (recovered - bounty) / 1e18, "tokens");
+        console.log("Bounty kept (yours): ", bounty / 1e18, "tokens (plus your reclaimed seed)");
     }
 }

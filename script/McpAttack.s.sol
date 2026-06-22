@@ -12,6 +12,8 @@ import {Attacker} from "../src/Attacker.sol";
 ///
 /// Prerequisites — set in .env: SENDER_ADDRESS, TOKEN_ADDRESS, VAULT_ADDRESS, RECOVERY_ADDRESS
 contract McpAttack is Script {
+    uint256 constant BOUNTY_BPS = 1_000; // 10% — display only; keep in sync with Attacker.BOUNTY_BPS
+
     function run() external {
         address vault = vm.envAddress("VAULT_ADDRESS");
         address token = vm.envAddress("TOKEN_ADDRESS");
@@ -26,7 +28,14 @@ contract McpAttack is Script {
         vm.stopBroadcast();
 
         uint256 vaultAfter = IERC20(token).balanceOf(vault);
+
+        // `vaultBefore` is the protocol's recovered funds (the attacker's seed is
+        // reclaimed separately); the bounty is 10% of that.
+        uint256 recovered = vaultBefore;
+        uint256 bounty = (recovered * BOUNTY_BPS) / 10_000;
+
         console.log("Vault after:", vaultAfter / 1e18, "tokens (drained)");
-        console.log("Returned to protocol:", IERC20(token).balanceOf(recovery) / 1e18, "tokens");
+        console.log("Returned to protocol:", (recovered - bounty) / 1e18, "tokens");
+        console.log("Bounty kept (yours):", bounty / 1e18, "tokens (plus your reclaimed seed)");
     }
 }
