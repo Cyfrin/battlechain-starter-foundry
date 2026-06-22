@@ -28,9 +28,12 @@ contract ReentrancyTest is Test {
         vm.prank(whitehat);
         new Exploit(address(vault), recovery, address(0), address(0));
 
-        uint256 total = VAULT_SEED + ATTACKER_SEED;
+        // The attacker's seed is excluded from the bounty base: the bounty is 10% of the
+        // recovered PROTOCOL funds (VAULT_SEED), and the whitehat reclaims their own seed.
+        uint256 recovered = VAULT_SEED;
+        uint256 bounty = recovered * 1_000 / 10_000;
         assertEq(token.balanceOf(address(vault)), 0, "vault drained");
-        assertEq(token.balanceOf(recovery), total * 9_000 / 10_000, "90% returned to protocol");
-        assertEq(token.balanceOf(whitehat), total * 1_000 / 10_000, "10% bounty to whitehat");
+        assertEq(token.balanceOf(recovery), recovered - bounty, "90% of recovered returned to protocol");
+        assertEq(token.balanceOf(whitehat), bounty + ATTACKER_SEED, "bounty + reclaimed seed to whitehat");
     }
 }
